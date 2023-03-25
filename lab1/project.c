@@ -11,25 +11,25 @@ int main(void) {
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG);
 	GPIOPinTypeGPIOOutput(GPIO_PORTG_BASE, GPIO_PIN_2);
 
-	// See Page26 of the guide for how Switch 3 is connected to PM2
+	// assuming we're trying PM4 now
+	int buttonPin = GPIO_PIN_4;
+
+	// gotta set this to the "distance" between the switch pin and LED pin
+	int shiftAmount = 2;
 
 	// enable Port M
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOM);
 
-	// config PM2 as an input
-	GPIOPinTypeGPIOInput(GPIO_PORTM_BASE, GPIO_PIN_2);
+	// config PM? as an input
+	GPIOPinTypeGPIOInput(GPIO_PORTM_BASE, buttonPin);
 
-	// connect PM2 to internal pull-up resistors (ie: 1 is default) and set 2 mA as current strength.
-	GPIOPadConfigSet(GPIO_PORTM_BASE, GPIO_PIN_2, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+	// connect PM? to internal pull-up resistors (ie: 1 is default) and set 2 mA as current strength.
+	GPIOPadConfigSet(GPIO_PORTM_BASE, buttonPin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
 	while(1) {
-		// Read PM2 and write the inverse of that to PG2
-		// NB1: Why inverse? because when we close the switch, it connects us straight to 0V (Page 26 of guide again)
-		// (This is also why we configured it with a weak pull-up resistor, so that it's 1 when the switch is open)
-		//
-		// NB2: Reading PM2 gives us 0x0 or 0x4, both of which we can write directly to PG2
-		// what if we configured and tried to read PM4 though? can we write the 0x10 that we would get?
-		GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, ~GPIOPinRead(GPIO_PORTM_BASE, GPIO_PIN_2));
+		// gotta bit shift the value or the mask won't work!
+		// if you try eg: PM0, you should shift in the other direction
+		GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, ~GPIOPinRead(GPIO_PORTM_BASE, buttonPin) >> shiftAmount);
 	}
 }
 
