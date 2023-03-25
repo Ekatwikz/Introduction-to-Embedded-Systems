@@ -6,30 +6,26 @@
 #include "inc/hw_memmap.h"
 
 int main(void) {
+	// clock
 	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
 
+	// LED
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG);
 	GPIOPinTypeGPIOOutput(GPIO_PORTG_BASE, GPIO_PIN_2);
 
-	// assuming we're trying PM4 now
-	int buttonPin = GPIO_PIN_4;
-
-	// gotta set this to the "distance" between the switch pin and LED pin
-	int shiftAmount = 2;
-
-	// enable Port M
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOM);
-
-	// config PM? as an input
-	GPIOPinTypeGPIOInput(GPIO_PORTM_BASE, buttonPin);
-
-	// connect PM? to internal pull-up resistors (ie: 1 is default) and set 2 mA as current strength.
-	GPIOPadConfigSet(GPIO_PORTM_BASE, buttonPin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+	double hertz = 2;
+	double onRatio = 0.5;
+	uint32_t clockRate = SysCtlClockGet();
 
 	while(1) {
-		// gotta bit shift the value or the mask won't work!
-		// if you try eg: PM0, you should shift in the other direction
-		GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, ~GPIOPinRead(GPIO_PORTM_BASE, buttonPin) >> shiftAmount);
+		GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, 0x4);
+
+		// SysCtlDelay runs a 3 instruction loop "count" times, count being the parameter
+		// You can use this to blink the LED
+		SysCtlDelay(clockRate / 3 / hertz * onRatio);
+
+		GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, 0x0);
+		SysCtlDelay(clockRate / 3 / hertz * (1 - onRatio));
 	}
 }
 
