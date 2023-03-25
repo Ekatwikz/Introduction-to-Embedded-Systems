@@ -8,25 +8,28 @@
 int main(void) {
 	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
 
-	// See Page26 of the guide for how the LED is connected to PG2
-
-	// enable Port G
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG);
-
-	// config Pin2 of Port G as an output
 	GPIOPinTypeGPIOOutput(GPIO_PORTG_BASE, GPIO_PIN_2);
 
-	while(1) {
-		// Write 1 to Pin2 of Port G
-		// NB1: the second argument is treated as a bitmask to figure out which pin(s) to set
-		// NB2: GPIO_PIN_2 is also literally just a macro for 0x4, because that gives the (2+1)th least significant bit as 1
-		//
-		// ie: we could also literally write 0xF instead of 0x4 as the third argument
-		// but, we couldn't do eg: 0x1 or 0xA
-		GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, 0x4);
+	// See Page26 of the guide for how Switch 3 is connected to PM2
 
-		// Switch off by writing 0x0
-		//GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, 0x0);
+	// enable Port M
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOM);
+
+	// config PM2 as an input
+	GPIOPinTypeGPIOInput(GPIO_PORTM_BASE, GPIO_PIN_2);
+
+	// connect PM2 to internal pull-up resistors (ie: 1 is default) and set 2 mA as current strength.
+	GPIOPadConfigSet(GPIO_PORTM_BASE, GPIO_PIN_2, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
+	while(1) {
+		// Read PM2 and write the inverse of that to PG2
+		// NB1: Why inverse? because when we close the switch, it connects us straight to 0V (Page 26 of guide again)
+		// (This is also why we configured it with a weak pull-up resistor, so that it's 1 when the switch is open)
+		//
+		// NB2: Reading PM2 gives us 0x0 or 0x4, both of which we can write directly to PG2
+		// what if we configured and tried to read PM4 though? can we write the 0x10 that we would get?
+		GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, ~GPIOPinRead(GPIO_PORTM_BASE, GPIO_PIN_2));
 	}
 }
 
