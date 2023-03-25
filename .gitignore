@@ -1,5 +1,11 @@
+# Code Composer Studio junk
 Debug
 Release
 .xdchelp
 .config
 .launches
+
+# vim stuffs
+*~
+*.swp
+
