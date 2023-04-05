@@ -5,6 +5,9 @@ Release
 .config
 .launches
 
+# not sure if junk?
+.metadata
+
 # vim stuffs
 *~
 *.swp
