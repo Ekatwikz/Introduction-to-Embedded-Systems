@@ -62,6 +62,8 @@ __error__(char *pcFilename, uint32_t ui32Line)
 //
 //*****************************************************************************
 void Timer0IntHandler(void) {
+	TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+	GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, ~GPIOPinRead(GPIO_PORTN_BASE, GPIO_PIN_0));
 }
 
 //*****************************************************************************
@@ -82,6 +84,8 @@ int main(void) {
 	// config device clock
 	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
 
+	//// Pin N? config
+
 	// enable Pin N? to read some voltages
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
 
@@ -92,11 +96,31 @@ int main(void) {
 	// so we want our disconnected pins to default to 0s
 	GPIOPadConfigSet(GPIO_PORTN_BASE, 0xFF, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPD);
 
-	uint32_t clockRate = SysCtlClockGet();
-	int hertz = 2;
+	//// Interrupt config?
+
+	// allow processor to respond to interrupts
+	IntMasterEnable();
+
+	// Enable Timer0?
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+
+	// Config Timer0 to be full-width period countdown?
+	TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+
+	// load cycle count to TimerA (b/c fullwidth, B for halfwidth)
+	TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / 2);
+
+	// enable interrupt?
+	IntEnable(INT_TIMER0A);
+	TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+
+	// enable timer
+	TimerEnable(TIMER0_BASE, TIMER_A);
+
+	//uint32_t clockRate = SysCtlClockGet();
+	//int hertz = 2;
     while(1) {
-		GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, ~GPIOPinRead(GPIO_PORTN_BASE, 0x1));
-		SysCtlDelay(clockRate / 3 / hertz);
+		//SysCtlDelay(clockRate / 3 / hertz);
 		//ROM_SysCtlDelay(clockRate / 3 / hertz);
     }
 }
