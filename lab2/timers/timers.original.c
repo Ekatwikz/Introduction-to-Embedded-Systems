@@ -22,6 +22,8 @@
 //
 //*****************************************************************************
 
+#ifdef SHOULDNTCOMPILETHISORTHEREWILLBEISSUES
+
 #include <stdint.h>
 #include <stdbool.h>
 #include "inc/hw_ints.h"
@@ -232,3 +234,5 @@ main(void)
     {
     }
 }
+
+#endif

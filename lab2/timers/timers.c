@@ -17,110 +17,102 @@
 #include "driverlib/pwm.h"
 #include "driverlib/pin_map.h"
 
-//*****************************************************************************
-//
-//! \addtogroup example_list
-//! <h1>Timer (timers)</h1>
-//!
-//! This example application demonstrates the use of the timers to generate
-//! periodic interrupts.  One timer is set up to interrupt once per second and
-//! the other to interrupt twice per second; each interrupt handler will toggle
-//! its own indicator on the display.
-//
-//*****************************************************************************
-
-//*****************************************************************************
-//
-// Flags that contain the current value of the interrupt indicator as displayed
-// on the CSTN display.
-//
-//*****************************************************************************
-uint32_t g_ui32Flags;
-
-//*****************************************************************************
-//
-// Graphics context used to show text on the CSTN display.
-//
-//*****************************************************************************
-tContext g_sContext;
-
-//*****************************************************************************
-//
-// The error routine that is called if the driver library encounters an error.
-//
-//*****************************************************************************
 #ifdef DEBUG
-void
+	void
 __error__(char *pcFilename, uint32_t ui32Line)
 {
 }
 #endif
 
-//*****************************************************************************
-//
-// The interrupt handler for the first timer interrupt.
-//
-//*****************************************************************************
 void Timer0IntHandler(void) {
+	// clear interrupt
 	TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-	GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, ~GPIOPinRead(GPIO_PORTN_BASE, GPIO_PIN_0));
+
+	// toggle LED
+	GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_1, ~GPIOPinRead(GPIO_PORTL_BASE, GPIO_PIN_1));
 }
 
-//*****************************************************************************
-//
-// The interrupt handler for the second timer interrupt.
-//
-//*****************************************************************************
+float count = 3; // global??
 void Timer1IntHandler(void) {
+	TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+
+	count = count ? count - 1 : 3;
+	float dutyFraction = (3 - count) / 7;
+	int PWMperiod = 250;
+	int period = PWMperiod * dutyFraction;
+
+	// cheap hack for no 0
+	period = period ? period : 1;
+	period = 1;
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, period);
 }
 
-//*****************************************************************************
-//
-// This example application demonstrates the use of the timers to generate
-// periodic interrupts.
-//
-//*****************************************************************************
 int main(void) {
+	//// pins
 	// config device clock
-	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
+	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_OSC | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN | SYSCTL_SYSDIV_16);
+	uint32_t clockRate = 1000000; //SysCtlClockGet();
+	int hertz = 2;
+	//int dutyRatio = 5; // 1/5 of period?
 
-	//// Pin N? config
-
-	// enable Pin N? to read some voltages
+	// enable Pin N and L for our LEDs
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
 
-	// config first 4 PN?* as inputs
-	GPIOPinTypeGPIOInput(GPIO_PORTN_BASE, 0xF);
+	// Enable PWM
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
 
-	// connect first 4 PN* to internal pull-down resistors and set 2 mA as current strength.
-	// so we want our disconnected pins to default to 0s
-	GPIOPadConfigSet(GPIO_PORTN_BASE, 0xFF, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPD);
+	// config all LEDs
+	GPIOPinTypeGPIOOutput(GPIO_PORTL_BASE, GPIO_PIN_4 | GPIO_PIN_1);
+	GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_4);
 
-	//// Interrupt config?
+	// config N3 for PWM
+	GPIOPinTypePWM(GPIO_PORTN_BASE, GPIO_PIN_3);
+	GPIOPinConfigure(GPIO_PN3_M0PWM7);
+
+	//// config PWM
+	//SysCtlPWMClockSet(SYSCTL_PWMDIV_4);
+	PWMClockSet(PWM0_BASE, SYSCTL_PWMDIV_4);
+
+	PWMGenConfigure(PWM0_BASE, PWM_GEN_3, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
+
+	uint32_t PWMperiod = 250 - 1;
+	PWMGenPeriodSet(PWM0_BASE, PWM_GEN_3, PWMperiod);
+	//PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, PWMperiod / dutyRatio); // duty cycle
+
+	PWMOutputState(PWM0_BASE, PWM_OUT_7_BIT, true);
+	PWMGenEnable(PWM0_BASE, PWM_GEN_3);
+
+	//// interrupts
+	// Enable Timers?
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+
+	// Config Timers to be full-width period countdown
+	TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+	TimerConfigure(TIMER1_BASE, TIMER_CFG_PERIODIC);
+
+	// load cycle counts to TimerA (b/c fullwidth, B for halfwidth)
+	TimerLoadSet(TIMER0_BASE, TIMER_A, clockRate / 2);
+	TimerLoadSet(TIMER1_BASE, TIMER_A, clockRate);
+
+	// enable interrupts
+	IntEnable(INT_TIMER0A);
+	IntEnable(INT_TIMER1A);
+	TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+	TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+
+	// enable timers
+	TimerEnable(TIMER0_BASE, TIMER_A);
+	TimerEnable(TIMER1_BASE, TIMER_A);
 
 	// allow processor to respond to interrupts
 	IntMasterEnable();
 
-	// Enable Timer0?
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-
-	// Config Timer0 to be full-width period countdown?
-	TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-
-	// load cycle count to TimerA (b/c fullwidth, B for halfwidth)
-	TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / 2);
-
-	// enable interrupt?
-	IntEnable(INT_TIMER0A);
-	TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-
-	// enable timer
-	TimerEnable(TIMER0_BASE, TIMER_A);
-
-	//uint32_t clockRate = SysCtlClockGet();
-	//int hertz = 2;
-    while(1) {
+	while(1) {
+		GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_4, ~GPIOPinRead(GPIO_PORTL_BASE, GPIO_PIN_4));
 		//SysCtlDelay(clockRate / 3 / hertz);
-		//ROM_SysCtlDelay(clockRate / 3 / hertz);
-    }
+		ROM_SysCtlDelay(clockRate / 3 / hertz);
+	}
 }
+
