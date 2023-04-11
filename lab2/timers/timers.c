@@ -43,7 +43,6 @@ void Timer1IntHandler(void) {
 
 	// cheap hack for no 0
 	period = period ? period : 1;
-	period = 1;
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, period);
 }
 
